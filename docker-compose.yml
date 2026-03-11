@@ -1,0 +1,55 @@
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: rabbittai_backend
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      - API_SECRET_KEY=${API_SECRET_KEY}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - GMAIL_USER=${GMAIL_USER}
+      - GMAIL_APP_PASSWORD=${GMAIL_APP_PASSWORD}
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-http://localhost:3000}
+    healthcheck:
+      # Uses Python (already in the image) instead of curl which isn't installed
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request, sys; r=urllib.request.urlopen('http://localhost:8000/api/health', timeout=5); sys.exit(0 if r.status==200 else 1)",
+        ]
+      interval: 20s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        # NEXT_PUBLIC_* vars MUST be build args — Next.js bakes them at compile time
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
+        NEXT_PUBLIC_API_KEY: ${NEXT_PUBLIC_API_KEY:-}
+    container_name: rabbittai_frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:8000}
+      - NEXT_PUBLIC_API_KEY=${NEXT_PUBLIC_API_KEY:-}
+    depends_on:
+      # Use service_started so frontend launches as soon as backend container
+      # is up — no longer waiting on health check (which was blocking it)
+      backend:
+        condition: service_started
+    restart: unless-stopped
+
+networks:
+  default:
+    name: rabbittai_network
