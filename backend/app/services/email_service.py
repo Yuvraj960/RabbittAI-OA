@@ -75,7 +75,7 @@ def send_summary_email(recipient: str, filename: str, ai_summary: str) -> None:
     msg.attach(MIMEText(html_body, "html"))
 
     try:
-        with smtplib.SMTP("smtp.gmail.com", 587, timeout=30) as server:
+        with smtplib.SMTP("smtp-relay.brevo.com", 2525, timeout=30) as server:
             server.ehlo()
             server.starttls()
             server.login(settings.gmail_user, settings.gmail_app_password)
